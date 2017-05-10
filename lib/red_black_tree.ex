@@ -116,6 +116,13 @@ defmodule RedBlackTree do
     do_get(root, key, comparator)
   end
 
+  def getRange(%RedBlackTree{root: root, comparator: comparator}, get_key_min, get_key_max) do
+    case comparator.(get_key_min, get_key_max) do
+      1 -> {:error, "improper range"}
+      _ -> do_get_range(root, get_key_min, get_key_max, comparator, [])
+    end
+  end
+
   def size(%RedBlackTree{size: size}) do
     size
   end
@@ -176,6 +183,30 @@ defmodule RedBlackTree do
       0 -> value
       -1 -> do_get(left, get_key, comparator)
       1 -> do_get(right, get_key, comparator)
+    end
+  end
+
+  defp do_get_range(nil, _get_key_min, _get_key_max, _comparator, result), do: result
+
+  defp do_get_range(%Node{key: node_key, left: left, right: right, value: value},
+                    get_key_min, get_key_max, comparator, accum) do
+    case comparator.(get_key_max, node_key) do
+      0 ->
+        case comparator.(get_key_min, node_key) do
+          -1 -> do_get_range(left, get_key_min, get_key_max, comparator, [value|accum])
+          _  -> [value|accum]
+        end
+      -1 -> #max<nodekey
+        do_get_range(left, get_key_min, get_key_max, comparator, accum)
+      1  -> #max > node_key
+        accum_right = do_get_range(right, get_key_min, get_key_max, comparator, accum)
+        case comparator.(get_key_min, node_key ) do
+          0  -> [value | accum_right]
+          -1 -> #min < node_key
+            do_get_range(left, get_key_min, get_key_max, comparator, [value|accum_right])
+          1->  #min > node_key
+            accum_right
+        end
     end
   end
 
