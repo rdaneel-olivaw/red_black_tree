@@ -116,10 +116,14 @@ defmodule RedBlackTree do
     do_get(root, key, comparator)
   end
 
-  def getRange(%RedBlackTree{root: root, comparator: comparator}, get_key_min, get_key_max) do
-    case comparator.(get_key_min, get_key_max) do
+  def getLbKey(%RedBlackTree{root: root, comparator: comparator}, key, default \\ 0) do
+    do_get_lbkey(root, default, key, comparator)
+  end
+
+  def getRange(%RedBlackTree{root: root, comparator: comparator}, key_min, key_max) do
+    case comparator.(key_min, key_max) do
       1 -> {:error, "improper range"}
-      _ -> do_get_range(root, get_key_min, get_key_max, comparator, [])
+      _ -> do_get_range(root, key_min, key_max, comparator, [])
     end
   end
 
@@ -169,7 +173,6 @@ defmodule RedBlackTree do
   def insert(tree, key) do
     insert(tree, key, nil)
   end
-
   def member?(tree, key) do
     has_key?(tree, key)
   end
@@ -186,24 +189,39 @@ defmodule RedBlackTree do
     end
   end
 
-  defp do_get_range(nil, _get_key_min, _get_key_max, _comparator, result), do: result
+  defp do_get_lbkey(nil, lbkey, _get_key, _comparator) do
+    lbkey
+  end
+
+  defp do_get_lbkey(%Node{key: node_key, left: left, right: right}, lbkey, get_key, comparator) do
+    case comparator.(get_key, node_key) do
+      0 -> node_key
+      -1 -> do_get_lbkey(left, lbkey, get_key, comparator)
+      1 ->  case comparator.(node_key, lbkey) do
+              -1 -> do_get_lbkey(right, lbkey, get_key, comparator)
+              _  -> do_get_lbkey(right, node_key, get_key, comparator)
+            end
+    end
+  end
+
+  defp do_get_range(nil, _key_min, _key_max, _comparator, result), do: result
 
   defp do_get_range(%Node{key: node_key, left: left, right: right, value: value},
-                    get_key_min, get_key_max, comparator, accum) do
-    case comparator.(get_key_max, node_key) do
+                    key_min, key_max, comparator, accum) do
+    case comparator.(key_max, node_key) do
       0 ->
-        case comparator.(get_key_min, node_key) do
-          -1 -> do_get_range(left, get_key_min, get_key_max, comparator, [value|accum])
+        case comparator.(key_min, node_key) do
+          -1 -> do_get_range(left, key_min, key_max, comparator, [value|accum])
           _  -> [value|accum]
         end
       -1 -> #max<nodekey
-        do_get_range(left, get_key_min, get_key_max, comparator, accum)
+        do_get_range(left, key_min, key_max, comparator, accum)
       1  -> #max > node_key
-        accum_right = do_get_range(right, get_key_min, get_key_max, comparator, accum)
-        case comparator.(get_key_min, node_key ) do
+        accum_right = do_get_range(right, key_min, key_max, comparator, accum)
+        case comparator.(key_min, node_key ) do
           0  -> [value | accum_right]
           -1 -> #min < node_key
-            do_get_range(left, get_key_min, get_key_max, comparator, [value|accum_right])
+            do_get_range(left, key_min, key_max, comparator, [value|accum_right])
           1->  #min > node_key
             accum_right
         end
